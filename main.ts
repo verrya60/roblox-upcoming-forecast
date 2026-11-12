@@ -22,6 +22,8 @@
 //   this spread      -35.30 / -42.68 / -28.41  (mean -35.5, +7.9 better)
 //   (width 6, sigma 3.0, named 0.7 was the best of a grid over
 //    width 3-6, sigma 1.5-3.0, named 0.7-0.9.)
+// A place's probabilities are capped at 1 and the place sum is renormalised
+// after capping, so no place ever exceeds its named share.
 //
 // Reads $MAKEFUN_INPUT_DIR (else /input) and writes $MAKEFUN_OUTPUT_DIR (else
 // /output). Deterministic: no clock, no randomness, no network.
@@ -61,9 +63,15 @@ for (let place = 1; place <= task.places && place <= chart.length; place++) {
   }
   let total = 0;
   for (const w of weights.values()) total += w;
+  const rows: Array<{ universe_id: number; place: number; p: number }> = [];
   for (const [uid, w] of weights) {
-    probabilities.push({ universe_id: uid, place, p: (NAMED_SUM * w) / total });
+    rows.push({ universe_id: uid, place, p: Math.min(1, (NAMED_SUM * w) / total) });
   }
+  // Renormalise after capping so the place still sums to NAMED_SUM.
+  let sum = 0;
+  for (const r of rows) sum += r.p;
+  for (const r of rows) r.p = (NAMED_SUM * r.p) / sum;
+  probabilities.push(...rows);
 }
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
